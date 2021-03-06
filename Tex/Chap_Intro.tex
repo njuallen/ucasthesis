@@ -1,43 +1,111 @@
 \chapter{引言}\label{chap:introduction}
 
+
 \section{研究背景}
 
-考虑到许多同学可能缺乏\LaTeX{}使用经验，ucasthesis将\LaTeX{}的复杂性高度封装，开放出简单的接口，以便轻易使用。同时，对用\LaTeX{}撰写论文的一些主要难题，如制图、制表、文献索引等，进行了详细说明，并提供了相应的代码样本，理解了上述问题后，对于初学者而言，使用此模板撰写学位论文将不存在实质性的困难。所以，如果你是初学者，请不要直接放弃，因为同样为初学者的我，十分明白让\LaTeX{}简单易用的重要性，而这正是ucasthesis所追求和体现的。
+随着诸如Dennard Scaling和摩尔定律等传统工艺技术演进所带来的收益的大大减少，计算机体系结构有望进入创新的黄金时代。领域专用架构（DSA）是一种有前途的解决方案，可以继续提高计算性能，同时能向以前工艺演进一样，带来能量和面积效率水平的极大提升。不幸的是，传统的芯片设计方法和硬件开发方法需要大量的非经常性工程成本（NRE成本），包括工具，人工，IP和时间等。这极大提升了芯片设计的门槛，最终阻碍了DSA的广泛采用。
 
-此中国科学院大学学位论文模板ucasthesis基于中科院数学与系统科学研究院吴凌云研究员的CASthesis模板发展而来。当前ucasthesis模板满足最新的中国科学院大学学位论文撰写要求和封面设定。兼顾操作系统：Windows，Linux，MacOS 和\LaTeX{}编译引擎：pdflatex，xelatex，lualatex。支持中文书签、中文渲染、中文粗体显示、拷贝PDF中的文本到其他文本编辑器等特性。此外，对模板的文档结构进行了精心设计，撰写了编译脚本提高模板的易用性和使用效率。
+而与之相对应的是，由于开源软件的激增，过去几十年软件开发的大量工程成本和极长的设计周期已大大缩减。一个小型的软件开发团队现在可以针对他们自己的用户群体的需求，使用更高级的工具，迅速实现他们创新的想法。受到软件社区的启发，开放式的硬件设计被认为是降低芯片设计成本的最有前途的方法之一，受到了学术界和工业界的普遍关注。对于学术界来说，与开源软件模拟器（例如gem5，MARSSx86，Sniper或ZSim）相比，开源硬件实现具有许多优势。与软件模型不同，硬件实现可以演示精确的微体系结构行为，运行包含大量指令数的实际应用程序，并凭提供功率和面积测量结果。此外，开放式硬件实现还提供了一个基准平台，作为新微体系结构优化的baseline。对工业界来说，开放的硬件标准意味着他们可以共建共享复杂的软件或硬件生态，而不必被标准专利构筑的门槛拦在市场之外。开放的硬件实现，则可以降低了他们的IP开发成本，缩短设计周期。
 
-ucasthesis的目标在于简化学位论文的撰写，利用\LaTeX{}格式与内容分离的特征，模板将格式设计好后，作者可只需关注论文内容。 同时，ucasthesis有着整洁一致的代码结构和扼要的注解，对文档的仔细阅读可为初学者提供一个学习\LaTeX{}的窗口。此外，模板的架构十分注重通用性，事实上，ucasthesis不仅是国科大学位论文模板，同时，通过少量修改即可成为使用\LaTeX{}撰写中英文文章或书籍的通用模板，并为使用者的个性化设定提供了接口。
+最近一些年，涌现出了大量开源芯片设计的工作，开源芯片设计的生态逐渐繁荣。处理器核，cache，外设，加速器，SoC等，都有了开源的设计实现。我们以Chipyard SoC集成框架为例，展示开源芯片生态的现状。Chipyard是用于对硬件进行全系统的设计和评估的一套框架。它包含了一系列工具、库以及开源IP，可以将现有的开源芯片设计以及商业的芯片设计整合成一个完整的SoC。
+Chipyard包含有以下IP和模块：
+\begin{itemize}
+	\item 处理器核
+		\begin{itemize}
+			\item RocketCore：顺序单发射，支持RISC-V GC指令集，可运行Linux的处理器核
+			\item BOOM core：乱序多发射，支持RISC-V GC指令集，可运行Linux的处理器核
+		\end{itemize}
+	\item 多核
+		\begin{itemize}
+			\item Rocketchip SoC框架
+		\end{itemize}
+	\item 加速器
+		\begin{itemize}
+			\item Hwacha：向量加速器
+			\item Gemmini：神经网络加速器生成器
+			\item NVLDA：神经网络推理加速器
+			\item SHA3 RoCC Accelerator：SHA3哈希算法加速器
+		\end{itemize}
+	\item 设备
+		\begin{itemize}
+			\item IceNet：网卡（NIC）
+			\item UART
+			\item SPI Flash
+		\end{itemize}
+	\item 网络
+		\begin{itemize}
+			\item Tilelink SEREES: SerDes
+			\item Tilelink Switch：Switch
+			\item Tilelink Ring Network：NoC
+		\end{itemize}
+\end{itemize}
 
-\section{系统要求}\label{sec:system}
 
-\href{https://github.com/mohuangrui/ucasthesis}{\texttt{ucasthesis}} 宏包可以在目前主流的 \href{https://en.wikibooks.org/wiki/LaTeX/Introduction}{\LaTeX{}} 编译系统中使用，如\TeX{}Live和MiK\TeX{}。因C\TeX{}套装已停止维护，\textbf{不再建议使用} （请勿混淆C\TeX{}套装与ctex宏包。C\TeX{}套装是集成了许多\LaTeX{}组件的\LaTeX{}编译系统。 \href{https://ctan.org/pkg/ctex?lang=en}{ctex} 宏包如同ucasthesis，是\LaTeX{}命令集，其维护状态活跃，并被主流的\LaTeX{}编译系统默认集成，是几乎所有\LaTeX{}中文文档的核心架构）。推荐的 \href{https://en.wikibooks.org/wiki/LaTeX/Installation}{\LaTeX{}编译系统} 和 \href{https://en.wikibooks.org/wiki/LaTeX/Installation}{\LaTeX{}文本编辑器} 为
-\begin{center}
-    %\footnotesize% fontsize
-    %\setlength{\tabcolsep}{4pt}% column separation
-    %\renewcommand{\arraystretch}{1.5}% row space 
-    \begin{tabular}{lcc}
-        \hline
-        %\multicolumn{num_of_cols_to_merge}{alignment}{contents} \\
-        %\cline{i-j}% partial hline from column i to column j
-        操作系统 & \LaTeX{}编译系统 & \LaTeX{}文本编辑器\\
-        \hline
-        Linux & \href{https://www.tug.org/texlive/acquire-netinstall.html}{\TeX{}Live Full} & \href{http://www.xm1math.net/texmaker/}{Texmaker} 或 Vim\\
-        MacOS & \href{https://www.tug.org/mactex/}{Mac\TeX{} Full} & \href{http://www.xm1math.net/texmaker/}{Texmaker} 或 Texshop\\
-        Windows & \href{https://www.tug.org/texlive/acquire-netinstall.html}{\TeX{}Live Full} 或 \href{https://miktex.org/download}{MiK\TeX{}} & \href{http://www.xm1math.net/texmaker/}{Texmaker}\\
-        \hline
-    \end{tabular}
-\end{center}
 
-\LaTeX{}编译系统，如\TeX{}Live（Mac\TeX{}为针对MacOS的\TeX{}Live)，用于提供编译环境，\LaTeX{}文本编辑器 (如Texmaker) 用于编辑\TeX{}源文件。请从各软件官网下载安装程序，勿使用不明程序源。\textbf{\LaTeX{}编译系统和\LaTeX{}编辑器分别安装成功后，即完成了\LaTeX{}的系统配置}，无需其他手动干预和配置。若系统原带有旧版的\LaTeX{}编译系统并想安装新版，请\textbf{先卸载干净旧版再安装新版}。
+例如XXX（把PPT里那个SoC的图给放上来）。
+从XXX到XXX。
+但是没有一个高度可用的cache的实现。
 
-\section{问题反馈}
+\section{研究动机}
 
-请见 \href{https://github.com/mohuangrui/ucasthesis/wiki/%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98}{问题反馈} 
+\subsection{现有cache设计的不足}
 
-欢迎大家有效地反馈模板不足之处，一起不断改进模板。希望大家向同事积极推广\LaTeX{}，一起更高效地做科研。
 
-\section{模板下载}
+尽管最近确实有一些开源的cache设计，例如Sifive BlockInclusiveCache，XXX，TLSimpleL2，XXX。但是它们的性能，质量，通用性都不太好。这阻碍了开源芯片的广泛应用。
+这里或许可以上一个表，列出现有的开源的cache在哪些方面有问题。
 
-\begin{center}
-    \href{https://github.com/mohuangrui/ucasthesis}{Github/ucasthesis}: \url{https://github.com/mohuangrui/ucasthesis}
-\end{center}
+\subsection{cache设计的挑战}
+
+在本工作中，我们试图解决这个问题，设计实现一个高性能，高质量，开源的cache生成器。设计一款cache生成器存在诸多挑战：
+
+1. 高性能：
+  * 延迟，吞吐（现代处理器大多是乱序，多核，这需要大量的MLP，各种预取，替换算法）
+  * 延迟，频率
+  * 命中率：各种预取，替换算法
+2. 高质量：
+  cache设计存在大量的复杂性，怎样把它搞对。复杂性体现在：
+  * 一致性协议
+  * 繁多的请求类型：cache请求，uncache请求，原子操作
+  * 复杂的请求处理流程：（这个可以画一个L2的各种case，各种路径做个案例。最好画成树状的，就是我们有多少条不同的请求处理路径）
+3. 通用性/灵活性
+  现代处理中往往有多个层次的cache，L1，L2，L3，L4等。L1往往与核心是紧耦合的，而其他cache层次，大多与核心松耦合，它们往往有相同的接口：上下都是标准的总线协议，同时有相似的请求处理流程。因此作为一款cache生成器，我们希望它能尽可能地通用，同一份代码，不同的配置，就可以生成满足不同层次需求的cache。通用性带来的挑战主要是L2，L3，L4有不同的延、吞吐的性能需求，怎样用同一份代码满足不同的需求。
+
+\section{论文的主要内容和贡献}
+
+本工作设计实现了一款cache生成器：DeepDark，它是一款高性能，高质量，高灵活性的cache生成器，面向高性能处理器的缓存层次。GAIO以多种方法解决了Cache设计存在的多个挑战。
+
+1. 高性能：
+  * 常用路径与非常用路径分开，降低常用路径的延迟。
+  * 多MSHR以提升吞吐
+  * 与后端紧密结合的设计，确保频率达标
+2. 高质量：
+  * 基于UVM验证方法学的随机验证框架
+  * 系统级测试
+3. 高灵活性：
+  * 高可配置性
+  * 算法插件化，算法可配置
+
+  我们使用chisel编程语言实现了DeepDark，它的延迟为XXX，吞吐达到XXX，在SMIC 14nm工艺下，频率高达2.0GHz。能够支持Linux，XXX等应用。
+
+  易难的意见，贡献这里总结得不够好，可以先写其他的，最后再总结。
+
+总结：本工作做出了三点微小的贡献：
+1. 高性能cache的设计与实现
+2. cache的验证
+3. 高度灵活性，高度可配置，具备高通用性的cache结构设计
+
+\section{论文组织}
+
+本文的后续章节组织结构如下：
+
+第二章介绍了本工作所涉及到的一些工程技术方面的背景知识，包括Tilelink总线协议，芯片验证的基础知识以及业界常用的UVM验证方法学等。这部分背景知识补齐了一些技术细节，帮助读者更好地理解本工作设计、实现以及验证部分的内容。
+
+第三章介绍了DeepDark cache生成器的设计，包括架构设计，在此架构设计下请求的处理流程以及一些性能优化。
+
+第四章介绍了DeepDark的实现。首先介绍了本工作基于的code base以及选用的语言。 接下来介绍了实现上的一些重要细节，例如主要模块的结构，它们的流水级、状态机；重要的同步、一致性协议、transaction control等问题在实现上是如何解决的等。最后还介绍了一些重要算法的实现。
+
+第五章介绍了DeepDark cache生成器的验证。包括了cache需要验证的功能，cache验证的难点，cache验证方案的设计和cache验证环境的实现。
+
+第六章介绍了DeepDark的评估。首先介绍了评估实验的配置以及实验的方法论。然后对cache的性能，后端实现，验证等各方面进行了综合的评估，并给出了结果。
+
+第六章对相关工作进行总结，并展望了下一步的研究方向。
