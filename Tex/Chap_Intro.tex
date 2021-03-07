@@ -9,42 +9,36 @@
 
 最近一些年，涌现出了大量开源芯片设计的工作，开源芯片设计的生态逐渐繁荣。处理器核，cache，外设，加速器，SoC等，都有了开源的设计实现。我们以Chipyard SoC集成框架为例，展示开源芯片生态的现状。Chipyard是用于对硬件进行全系统的设计和评估的一套框架。它包含了一系列工具、库以及开源IP，可以将现有的开源芯片设计以及商业的芯片设计整合成一个完整的SoC。
 Chipyard包含有以下IP和模块：
-\begin{itemize}
-	\item 处理器核
-		\begin{itemize}
-			\item RocketCore：顺序单发射，支持RISC-V GC指令集，可运行Linux的处理器核
-			\item BOOM core：乱序多发射，支持RISC-V GC指令集，可运行Linux的处理器核
-		\end{itemize}
-	\item 多核
-		\begin{itemize}
-			\item Rocketchip SoC框架
-		\end{itemize}
-	\item 加速器
-		\begin{itemize}
-			\item Hwacha：向量加速器
-			\item Gemmini：神经网络加速器生成器
-			\item NVLDA：神经网络推理加速器
-			\item SHA3 RoCC Accelerator：SHA3哈希算法加速器
-		\end{itemize}
-	\item 设备
-		\begin{itemize}
-			\item IceNet：网卡（NIC）
-			\item UART
-			\item SPI Flash
-		\end{itemize}
-	\item 网络
-		\begin{itemize}
-			\item Tilelink SEREES: SerDes
-			\item Tilelink Switch：Switch
-			\item Tilelink Ring Network：NoC
-		\end{itemize}
-\end{itemize}
 
+\begin{center}
+    \begin{tabular}{lp{12cm}}
+        \hline
+			类别 & 项目/IP\\
+        \hline
+			处理器核 & RocketCore（顺序单发射处理器核），BOOM core（乱序多发射处理器核）\\
+        \hline
+			缓存 & Sifive BlockInclusiveCache，TLSimpleL2\\
+        \hline
+			多核 & Rocketchip（SoC框架）\\
+        \hline
+			加速器 & Hwacha（向量加速器），Gemmini：（脉动阵列生成器），NVLDA（AI推理加速器），SHA3 RoCC Accelerator（SHA3哈希算法加速器）\\
+        \hline
+			设备 & IceNet（NIC），UART，SPI Flash\\
+        \hline
+			片上网络 & Tilelink SEREES，Switch，Ring Network（NoC）\\
+        \hline
+    \end{tabular}
+\end{center}
 
+可以看出，开源的芯片设计种类基本齐全，使用开源的IP能够组成基本可用的SoC。但是开源IP仍然存在不少的问题，这使得他们更多是用于学术界的实验性流片，而没有在工业界得到广泛使用。开源IP相对于商业IP的劣势主要是在于如下的几个方面：
 
-例如XXX（把PPT里那个SoC的图给放上来）。
-从XXX到XXX。
-但是没有一个高度可用的cache的实现。
+\begin{enumerate}
+	\item 性能差，主要是指PPA（Power Performance，Area）上的差距。例如经我们评估Boom乱序处理器核只能0.9GHz，而商用的ARM乱序处理器核能达到2.8GHz的频率。
+	\item 功能不齐全：开源的芯片设计只满足了基本的功能，而对于商用需要的更多功能，则没有实现。例如ECC等特性。
+	\item 质量不可靠：开源芯片设计大都没有经过完善的验证，没有配套的验证环境，不满足流片必须的覆盖率质量指标。
+\end{enumerate}
+
+开源芯片设计距离高度可用，广泛使用，仍然有很多工作要做。本工作聚焦于缓存部分，希望能产出一款开源的，高度可用的（性能，功能，质量都达标的）的cache生成器，为开源生态的繁荣贡献一份力量。
 
 \section{研究动机}
 
