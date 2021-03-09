@@ -1,0 +1,149 @@
+\chapter{背景}\label{chap:background}
+
+第二章介绍了本工作所涉及到的一些工程技术方面的背景知识，包括Tilelink总线协议，芯片验证的基础知识以及业界常用的UVM验证方法学等。这部分背景知识补齐了一些技术细节，帮助读者更好地理解本工作的后续内容。
+
+\section{TileLink一致性协议}
+
+\subsection{TileLink简介}
+
+TileLink是芯片级的互连标准，为多个主设备提供对内存和其他从设备的一致性的内存映射访问。TileLink作为快速可扩展互连协议，可提供低延迟和高吞吐量的传输。它被设计用于在片上系统（SoC）中连接通用多处理器，协处理器，加速器，DMA引擎以及简单或复杂的设备。
+TileLink是类似ARM AXI和ACE的，通用的、支持一致性的总线协议以及互联标准。
+TileLink的一些重要特性包括：
+\begin{enumerate}
+	\item 标准免费开放
+	\item 为RISC-V设计，但也支持其他的ISA
+	\item 为任意的缓存（如处理器核）或非缓存主设备（如DMA master）提供一致性的内存访问，支持类似MESI的一致性协议
+\end{enumerate}
+
+这些重要特性，让TileLink在开源芯片设计中广受欢迎。TileLink相关IP（如CrossBar，Arbiter，SerDes，NoC等）齐全并且很成熟，同时大量的开源芯片设计都使用TileLink总线作为访存接口，如Rocket Chip，Boom等。
+
+为了支持各种不同设备从简单到复杂的访存需求，TileLink规范定义了三种协议兼容级别，这些级别说明了设备必须支持协议的哪个子集，如下表所示。
+最简单的是TileLink轻量级不缓存（TL-UL），仅支持简单的内存读写（Get/Put）单个字的操作。它可以用于简单的，只需要单个字读写访问的，如UART之类外设。
+接下来最复杂的是TileLink重量级不缓存（TL-UH），它添加了各种Hint（提示），原子操作和突发访问，但不支持一致性缓存。它可以用于稍微复杂一点的，需要较高数据吞吐量，同时又不需要自己硬件上维护一致性的主设备，如ICache，DMA master等。
+最后，TileLink缓存（TL-C）是完整的协议，它支持使用一致性的缓存。它可以用于完整的，自己维护硬件一致性的cache，如DCache，L2，L3等各级Cache。
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}
+\hline
+                      & \textbf{TL-UL} & \textbf{TL-UH} & \textbf{TL-C} \\ \hline
+Read/Write operations & $\checkmark$   & $\checkmark$   & $\checkmark$  \\ \hline
+Multibeat messages    & $\checkmark$   & $\checkmark$   & $\checkmark$  \\ \hline
+Atomic operations     & $\checkmark$   & $\checkmark$   & $\checkmark$  \\ \hline
+Hint operations       & $\times$       & $\checkmark$   & $\checkmark$  \\ \hline
+Cache block transfers & $\times$       & $\times$       & $\checkmark$  \\ \hline
+Channels B+C+E        & $\times$       & $\times$       & $\checkmark$  \\ \hline
+\end{tabular}
+\end{table}
+
+我感觉应该把channel，message，transaction合并成一页，然后再把coherence搞一页。
+关于tilelink，大家主要要理解啥呢？tilelink有哪些流程，它们走的什么通道。每个通道是用来干啥的，就OK了吧？
+其他太过于细节的，其实是不必要的啊。
+
+channel上是message，message构成transaction，transaction支持请求的流程。然后对于这些流程，我们只需要着重介绍read/write，还有cache block transfer就好了吧。
+这个应该怎么介绍了呢，自底向上或者自顶向下都是可以的吧。
+随便介绍一下就OK了吧。
+
+\subsection{TileLink通道、消息、事务和一致性}
+
+上一节介绍了TileLink的主要特性，这一节主要介绍TileLink的一些技术细节，包括它的通道定义，消息，事务以及如何实现一致性。
+这些内容是具有递进关系的。
+通道是底层的逻辑链路，通道承载了消息。
+消息往往是单向（从master到slave或者从slave到master）的信息流动。例如，读请求消息（从master到slave）或者读数据回复（从slave到master）。
+事务是一个最基础的请求流程，例如读和写。多个逻辑上相关的消息一起组成了一个事务，例如，读由读请求和读数据回复组成；写由写请求和写回复组成。
+而一致性则是系统处理所有的事务时满足的性质。要保证数据的一致性，需要许多事务的协同。
+我们将按照自底向上的方式，从最底层的通道开始介绍，一直到最顶层的一致性相关的内容。
+
+
+\subsubsection{TileLink通道}
+
+TileLink协议总共有五条通道，分别是A、B、C、D和E。其中A、D通道是必须的，B、C和E通道是可选的，只有支持一致性协议的TL-C才需要，TL-UL和TL-UH并不需要。
+
+两条用来进行访存操作的基础的通道是：
+
+\begin{itemize}
+	\item 通道A：发送一个请求，要求在指定的地址范围上执行操作，以访问或缓存数据。
+	\item 通道D：向原始请求者发送数据响应或确认消息。
+\end{itemize}
+
+最高协议一致性级别（TL-C）添加了三个附加通道，这些通道提供了管理缓存数据块权限的功能：
+\begin{itemize}
+	\item 通道B：发送一个请求，要求在master缓存的地址上执行操作，以访问或写回该缓存的数据。
+	\item 通道C：响应请求，发送数据或确认消息。
+	\item 通道E：从原始请求者发送的缓存块传输的最终确认，用于序列化。
+\end{itemize}
+
+\subsubsection{TileLink消息}
+
+由于TileLink支持的功能很多，支持的消息种类也很多，因此对于不同的通道，我们简要介绍几个消息类型。
+
+\paragraph{通道A}
+\begin{itemize}
+	\item 
+	\item 
+\end{itemize}
+
+\paragraph{通道D}
+\begin{itemize}
+	\item 
+	\item 
+\end{itemize}
+
+\paragraph{通道B}
+\begin{itemize}
+	\item 
+	\item 
+\end{itemize}
+
+\paragraph{通道C}
+\begin{itemize}
+	\item 
+	\item 
+\end{itemize}
+
+\paragraph{通道E}
+\begin{itemize}
+	\item 
+	\item 
+\end{itemize}
+
+\subsubsection{TileLink事务}
+
+\subsubsection{TileLink一致性}
+
+tilelink中定义的coherence状态。
+我们选用的目录一致性协议。
+可以给一下手册里面的几个例子。
+
+这里在介绍一致性协议时可以区分update based和invalidation based，这两种都是可以的。
+然后介绍清楚我们用的是哪一种啊。
+
+\section{TileLink一致性协议}
+### Verification
+#### Verification的基础知识
+
+首先验证是什么东西，验证是在干什么。
+
+Verification的重要性。
+
+验证的流程：specification（功能详述），验证计划，开发验证环境，测试，回归测试，芯片生产，硅后系统测试，逃逸分析。
+本验证工作主要关注的是硅前的阶段，即在流片前协助调试，尽可能地发现bug。
+
+验证的层次
+
+Functional Verification是在做什么东西。
+有哪些验证的方法，各有什么优缺点。
+
+动态验证
+静态验证
+
+现在大家常用的验证方法。
+
+#### UVM验证方法学
+
+UVM是什么东西。是用来产生testbench的一种方法学。
+UVM structure。
+
+
+
+
+\subsection{现有cache设计的不足}
