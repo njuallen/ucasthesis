@@ -22,6 +22,12 @@ TileLink的一些重要特性包括：
 接下来最复杂的是TileLink重量级不缓存（TL-UH），它添加了各种Hint（提示），原子操作和突发访问，但不支持一致性缓存。它可以用于稍微复杂一点的，需要较高数据吞吐量，同时又不需要自己硬件上维护一致性的主设备，如ICache，DMA master等。
 最后，TileLink缓存（TL-C）是完整的协议，它支持使用一致性的缓存。它可以用于完整的，自己维护硬件一致性的cache，如DCache，L2，L3等各级Cache。
 
+TL-UL和TL-UH中的消息，都是master请求slave执行一些读写预取操作，master没有获取数据块的权限，不要求将数据块的所有权从slave转移到master这边。因此它们常常用于master自己不需要缓存数据块（如DMA engine），或者master自己缓存的数据块是软件维护一致性，不需要硬件维护一致性（例如ICache）的情况。由于master并不请求数据块权限以缓存在本地，所以这些请求被称为uncached请求，这也是两个协议名称中U的由来。
+
+TL-UL，TL-UH和TL-C三种兼容性级别，低级别是高级别的真子集，高级别包含了低级别的所有通道，所有消息（低级别的消息在高级别中功能可能会被扩展）。
+兼容性级别越高，支持的消息越来越多，支持的功能越来越强。相应的，master和slave端的实现也就更加复杂。
+
+
 \begin{center}
 \begin{tabular}{|l|l|l|l|}
 \hline
@@ -74,50 +80,139 @@ TileLink协议总共有五条通道，分别是A、B、C、D和E。其中A、D�
 
 \subsubsection{TileLink消息}
 
-由于TileLink支持的功能很多，支持的消息种类也很多，因此对于不同的通道，我们简要介绍几个消息类型。
+由于TileLink支持的功能很多，支持的消息种类也很多，因此对于不同的通道，我们简要介绍几种常用的消息类型。
 
 \paragraph{通道A}
 \begin{itemize}
-	\item 
-	\item 
+	\item Get：Get消息是由master发出的请求，该请求希望访问特定的数据块以便读取它。
+	\item PutFullData：PutFullData消息是由master提出的请求，该请求希望访问特定块的数据以便将其写入。
+	\item ArithmeticData：ArithmeticData消息是由master提出的请求，该请求希望访问特定的数据块，并应用算术运算，对其进行读取-修改-写入的原子操作。
+	\item Intent：Intent消息是由master发出的请求，它向slave传递了，它将来想要访问特定数据块的意图，这个可以用作预取请求。
+    \item AcquireBlock：AcquireBlock消息是带有缓存的master所使用的消息类型，此消息用于获取一个数据块的副本，并在本地缓存。Master还可以使用此消息类型来升级其对已拥有的块的权限（例如获得对只读副本的写权限）。
 \end{itemize}
 
 \paragraph{通道D}
 \begin{itemize}
-	\item 
-	\item 
+	\item AccessAck：AccessAck充当原始请求代理的确认消息，这个确认消息是不带有数据的。
+	\item AccessAckData：AccessAck充当原始请求代理的确认消息，这个确认消息是带有数据的。
+	\item GrantData：GrantData消息是slave发出的，它既是一条请求信息，也是一条确认消息。它携带了确认信息以及数据块到原始请求master的数据副本。
+	\item ReleaseAck：当slave收到来自master的Release[Data]消息时，slave发送ReleaseAck消息进行确认。
 \end{itemize}
 
 \paragraph{通道B}
 \begin{itemize}
-	\item 
-	\item 
+	\item ProbeBlock：ProbeBlock消息是slave用来查询或修改特定master缓存的数据块副本的权限的请求消息。一个可以slave撤销某个master对某块数据块的权限。
 \end{itemize}
 
 \paragraph{通道C}
 \begin{itemize}
-	\item 
-	\item 
+	\item ProbeAckData：当master收到来自slave的probe消息时，它使用ProbeAckData消息来发出确认，并写回脏数据。
+	\item Release：Release消息是master用来主动降级其缓存的数据块的权限所使用的请求消息。
+	\item ReleaseData：ReleaseData消息是master用来主动降级其缓存的数据块的权限，并写回脏数据所使用的请求消息。
 \end{itemize}
 
 \paragraph{通道E}
 \begin{itemize}
-	\item 
-	\item 
+	\item GrantAck：master使用GrantAck响应消息来提供对事务完成的最终确认。
 \end{itemize}
 
 \subsubsection{TileLink事务}
 
-\subsubsection{TileLink一致性}
+问题：这个图怎么画才好呢？
+这个图太大了，得重画才好啊。
+这个图要重画，可以拆分成几部分，或者干脆横过来啊。
 
-tilelink中定义的coherence状态。
-我们选用的目录一致性协议。
-可以给一下手册里面的几个例子。
+本章我们介绍TileLink支持的事务，一个TileLink事务一般是一个独立的操作，这个操作涉及到master和slave之间发送和接收的多条消息。
+一个事务是一个master和一个slave之间的操作。但是有时为了完成一个事务，可能后触发master和slave向其他节点发起其他事务。
+例如，在一个层次化的cache系统中，master向slave发送get请求，发起一个读事务，下面的每一级cache都会向下一级cache发起一个读事务。=
 
-这里在介绍一致性协议时可以区分update based和invalidation based，这两种都是可以的。
-然后介绍清楚我们用的是哪一种啊。
+下图展示了TileLink支持的所有操作，以及这些操作会涉及到哪些消息的发送与接收。
+我们主要介绍五个常用操作，分别是普通的读写Get、Put以及用于支持一致性协议的，权限转移操作：Acquire、Probe、Release。
 
-\section{TileLink一致性协议}
+\begin{figure}[H] %H为当前位置，!htb为忽略美学标准，htbp为浮动图形
+\centering %图片居中
+\includegraphics[width=\textwidth]{Img/TileLink_Operations.PNG} %插入图片，[]中设置图片大小，{}中是图片文件名
+\caption{Taxonomy of operations} %最终文档中希望显示的图片标题
+\label{TileLink_Operations} %用于文内引用的标签
+\end{figure}
+
+\paragraph{Get操作}
+Get操作是master对slave发起uncache的读，master只需要数据，而不需要缓存这个数据的权限。Get操作请求由master通过A通道发送Get消息，确认信息由slave通过D通道发送AccessAckData消息。
+
+\paragraph{Put操作}
+Put操作是master对slave发起uncache的写，master只需要把新数据写进slave就可以了，而不需要缓存这个数据的权限。Put操作请求由master通过A通道发送PutFullData或者PutPartialData消息，确认信息由slave通过D通道发送AccessAck消息。
+
+\paragraph{Acquire操作}
+Acquire操作是master对slave发起的申请块权限的操作。当操作完成后，master将获得块的特定权限，它将可以将数据块缓存在本地，并在本地执行权限允许的读写操作。
+Acquire操作包含三步：
+\begin{enumerate}
+	\item master向slave发送Acquire消息，对于特定数据块申请特定的权限。
+	\item slave向master回复Grant[Data]消息，对于此数据块，赋予master特定的权限（此权限可能比master请求的权限更高）。
+	\item master使用GrantAck响应消息来提供对事务完成的最终确认。
+\end{enumerate}
+
+\paragraph{Probe操作}
+Probe操作是slave对master发起的块权限查询或修改操作。当操作完成后，master将失去块的部分或全部权限。
+Probe操作包含两步：首先slave向master发送ProbeBlock或ProbePerm消息，表明它希望将master缓存的特定数据块的降至特定的权限。接着，master回复ProbeAck[Data]来确认此消息，并写回可能的脏数据。
+
+\paragraph{Release操作}
+Release操作是master对slave发起的，主动的释放块权限和数据的操作。当操作完成后，master将失去块的部分或全部权限。
+Release操作包含两步：首先master向slave发送Release[Data]消息，表明它将自己缓存的特定数据块降至特定的权限，同时写回可能有的脏数据。接着，slave回复ReleaseAck来确定此消息。
+
+\section{TileLink与一致性协议}
+
+在前面的小节中，我们介绍了TileLink中有哪些通道，哪些消息，哪些操作，其中有些就是和维护一致性有关的。在这一小节，我们完整介绍TileLink协议是如何维护一致性的。包括TileLink定义的块的权限，权限的转移以及操作定序等。
+TileLink定义了缓存的数据块的权限包括None，Read以及Read + Write。
+在TileLink中，对于一个数据块的所有缓存将构成了一棵树。树的根节点都位于缓存数据块的最终存储位置，例如DDR。根据节点在树中的不同位置，可以划分为四类：
+\begin{itemize}
+	\item Nothing：当前不缓存数据副本的节点，没有读取或写入权限。
+	\item Trunk：在Tip和根节点之间的路径上具有缓存副本的节点。这类节点既没有读权限也没有写权限。例如，当写权限位于L1时，其下面的L2和L3就位于L1到根节点DDR的路径上，L2和L3就处于Trunk状态。
+	\item Tip：缓存了数据副本节点，拥有最高权限，是负责对读写请求序列化的点。此状态下拥有对其副本的读/写权限，其中可能包含脏数据。
+	\item Branch：在Tip上方的具有缓存副本的节点。对其副本具有只读权限。
+\end{itemize}
+
+下面我们可以简单对比一下TileLink协议的状态和MESI的状态，上述四种状态，无法严格对应到MESI协议，但大部分是可以对应过去的。
+MESI协议中有四种状态，分别是：
+\begin{itemize}
+	\item Modified (M)
+	\item Exclusive (E)
+	\item Shared (S)
+	\item Invalid (I)
+\end{itemize}
+
+Nothing和Invalid，Branch和Shared是可以一一对应的。Tip对应于Modified和Exclusive状态。TileLink在设计上，并不需要其他节点区分拥有写权限的节点有没有修改过数据，是不是dirty的。它们只需要只需要知道那个节点拥有最高权限就可以。至于是否修改过数据，只有那个节点自己需要关心，拥有最高权限的节点，可以自己内部设计有dirty bit，来记录自己有没有修改过数据，并根据这个bit来判断自己要不要写回脏数据。
+Trunk状态是TileLink所独有的，这与TileLink的一致性协议设计是有关的。TileLink要求对于任何一块被缓存的数据块，所有缓存了它的节点必须组成一棵树，称为coherence tree。由于TileLink网络是有向无环图，同时被缓存的数据块唯一来自一个根节点（如DDR），需要组成树，实际上要求下级cache对上一级cache保持Inclusive的关系。这并不是说TileLink要求所有的cache都必须被设计成Inclusive Cache。下一级Cache并不需要真的缓存这个数据块，但是它需要知道自己处于Trunk状态，并且自己的子节点缓存了这个块。
+
+在TileLink的网络中，节点之间通过执行权限转移操作，保证了数据的一致性以及对数据写的定序。
+一般来说：
+Acquire操作用来主动申请权限。
+而Release操作用来主动地降低权限（例如当cache发生了替换，需要写时）。
+Probe操作是一致性的invalidate请求，用来降低client的权限。
+
+下面我们以一组例子说明在TileLink网络中，一致性是如何维护的：
+\begin{figure}[H] %H为当前位置，!htb为忽略美学标准，htbp为浮动图形
+\centering %图片居中
+\includegraphics[width=\textwidth]{Img/TileLink_coherence.PNG} %插入图片，[]中设置图片大小，{}中是图片文件名
+\caption{TileLink coherence examples} %最终文档中希望显示的图片标题
+\label{TileLink_coherence} %用于文内引用的标签
+\end{figure}
+
+图中的树描述了一个系统中的多个缓存节点。最下方是DDR，最上方是L1 Cache。缓存了某个特定数据块的所有缓存节点构成了一棵树，以DDR为树根。
+假设这是针对某个数据块d1的coherence tree。
+图中的状态标识是：空白指Nothing状态，B指Branch状态，T指Trunk状态，TT是Tip状态。
+L1 Cache从左到右标号分别为0，1，2，3。
+L2 Cache从左到右标号分别为0，1，2，3。
+L3 Cache从左到右标号分别为0，1。
+
+图A到D，展示了系统中针对数据块d1的coherence tree的变化过程。
+
+\begin{enumerate}
+	\item 开始时，在图A的状态下，数据块d1存在于DDR中，系统中的其他cache都没有缓存d1，因此DDR节点是TT状态。
+	\item L1 0请求了d1的写权限，因此从L1 0开始逐级向下通过Acquire操作升级权限，最终Tip状态从DDR转移到了L1 Cache 0，路径上的其他节点都变成了Trunk状态。Coherence Tree演化为了图B状态。
+	\item L1 1通过Acquire申请d1的读权限，L2 1也向下转发请求，Acquire请求到达L3 0。L3 0发现自己处于Trunk状态，意味着它的某个孩子节点拥有Tip状态。因此L3 0向L2 0发送ProbeBlock请求，L2 0发现自己也是Trunk状态，因此将ProbeBlock向上发送到L1 0。L1 0收到ProbeBlock请求后，通过ProbeAckData消息将自己的权限降为Branch，并将脏数据写回到L2 0。L2 0也将ProbeAckData发送到L3 0，L2 0变为Branch状态。L3 0收到ProbeAckData后，回收了针对d1数据块的Tip权限，并通过GrantData，将数据和权限发送到L2 1，进而上传到L1 1，它们变为了Branch状态。Coherence Tree演化到了图C状态。
+	\item L1 2通过Acquire申请d1的读权限，与前一步一样，最终Tip权限回到了DDR。值得注意的是，在图D中，L1 0和L2 0的Branch状态消失了，这不是L1 2的读导致的，可能是它们自己释放导致的。最终，Coherence Tree演化为了图D。
+\end{enumerate}
+
 ### Verification
 #### Verification的基础知识
 
